@@ -17,10 +17,8 @@ S3FS是一个命令行工具，允许你将Amazon S3存储桶挂载为本地文�
 ## 安装
 
 ```bash
-go get github.com/yourusername/s3fs
+go get github.com/skyline93/s3fs
 ```
-
-将`yourusername`替换为你的实际GitHub用户名。
 
 ## 使用
 
