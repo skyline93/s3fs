@@ -19,10 +19,8 @@ S3FS is a command line tool that allows you to mount an Amazon S3 bucket as a lo
 ## Installation
 
 ```bash
-go get github.com/yourusername/s3fs
+go get github.com/skyline93/s3fs
 ```
-
-Replace `yourusername` with your actual GitHub username.
 
 ## Usage
 
