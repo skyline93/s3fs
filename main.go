@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -16,8 +15,20 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/sevlyar/go-daemon"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
+
+var log = logrus.New()
+
+func init() {
+	// Log as JSON instead of the default ASCII formatter.
+	log.Formatter = new(logrus.JSONFormatter)
+
+	// Only log the warning severity or above.
+	log.Level = logrus.WarnLevel
+}
 
 type S3FS struct {
 	s3     *s3.S3
@@ -233,7 +244,8 @@ func (f *S3File) Flush(ctx context.Context, req *fuse.FlushRequest) error {
 }
 
 func main() {
-	var endpoint, ak, sk, bucket, mountpoint string
+	var cfgFile string
+	var mountpoint, bucket string
 	var daemonize bool
 
 	var rootCmd = &cobra.Command{
@@ -243,15 +255,40 @@ func main() {
 	
 You can use it like this:
 
-s3fs --endpoint your-endpoint --ak your-ak --sk your-sk --bucket your-bucket --mountpoint /path/to/mountpoint
+s3fs --bucket s3fs --mountpoint /data/s3fs`,
+		Run: func(_ *cobra.Command, _ []string) {
+			if cfgFile == "" {
+				viper.SetConfigName("s3fs")
+				viper.SetConfigType("toml")
+				viper.AddConfigPath("$HOME/.s3fs")
+				viper.AddConfigPath("/etc")
+			} else {
+				viper.SetConfigFile(cfgFile)
+			}
 
-Please replace 'your-endpoint', 'your-ak', 'your-sk', 'your-bucket', and '/path/to/mountpoint' with your actual values.`,
-		Run: func(cmd *cobra.Command, args []string) {
+			if err := viper.ReadInConfig(); err != nil {
+				log.Fatal("Error reading config file: ", err)
+			}
+
+			endpoint := viper.GetString("s3.endpoint")
+			ak := viper.GetString("s3.accessKey")
+			sk := viper.GetString("s3.secretKey")
+			logFile := viper.GetString("core.logFile")
+			pidFile := viper.GetString("core.pidFile")
+
+			// Set log output to the specified log file
+			file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+			if err == nil {
+				log.Out = file
+			} else {
+				log.Info("Failed to log to file, using default stderr")
+			}
+
 			if daemonize {
 				cntxt := &daemon.Context{
-					PidFileName: "s3fs.pid",
+					PidFileName: pidFile,
 					PidFilePerm: 0644,
-					LogFileName: "s3fs.log",
+					LogFileName: logFile,
 					LogFilePerm: 0640,
 					WorkDir:     "./",
 					Umask:       027,
@@ -310,9 +347,7 @@ Please replace 'your-endpoint', 'your-ak', 'your-sk', 'your-bucket', and '/path/
 		},
 	}
 
-	rootCmd.Flags().StringVarP(&endpoint, "endpoint", "e", "", "S3 endpoint")
-	rootCmd.Flags().StringVarP(&ak, "ak", "a", "", "Access key")
-	rootCmd.Flags().StringVarP(&sk, "sk", "s", "", "Secret key")
+	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.s3fs/s3fs.toml)")
 	rootCmd.Flags().StringVarP(&bucket, "bucket", "b", "", "Bucket name")
 	rootCmd.Flags().StringVarP(&mountpoint, "mountpoint", "m", "", "Mount point")
 	rootCmd.Flags().BoolVarP(&daemonize, "daemon", "d", false, "Run as a daemon")

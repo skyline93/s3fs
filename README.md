@@ -1,3 +1,4 @@
+
 # S3FS
 
 [简体中文](README_zh.md)
@@ -9,6 +10,8 @@ S3FS is a command line tool that allows you to mount an Amazon S3 bucket as a lo
 - Mount an Amazon S3 bucket as a local filesystem
 - Read and write files directly from and to S3
 - Run as a daemon
+- Configurable via a TOML file
+- Logs are written to a configurable file
 
 ## Prerequisites
 
@@ -19,22 +22,32 @@ S3FS is a command line tool that allows you to mount an Amazon S3 bucket as a lo
 ## Installation
 
 ```bash
-go get github.com/skyline93/s3fs
+go install github.com/skyline93/s3fs
+```
+
+## Configuration
+
+Create a `config.toml` file in the same directory as the `s3fs` binary with the following content:
+
+```toml
+[s3]
+endpoint = "your-endpoint"
+accessKey = "your-access-key"
+secretKey = "your-secret-key"
+bucket = "your-bucket"
+
+[core]
+logFile = "/path/to/logfile"
+pidFile = "/path/to/pidfile"
 ```
 
 ## Usage
 
 ```bash
-s3fs --endpoint your-endpoint --ak your-ak --sk your-sk --bucket your-bucket --mountpoint /path/to/mountpoint
+s3fs
 ```
 
-Replace `your-endpoint`, `your-ak`, `your-sk`, `your-bucket`, and `/path/to/mountpoint` with your actual values.
-
-To run as a daemon:
-
-```bash
-s3fs --endpoint your-endpoint --ak your-ak --sk your-sk --bucket your-bucket --mountpoint /path/to/mountpoint --daemon
-```
+To run as a daemon, set `daemon = true` in the `config.toml` file.
 
 ## Contributing
 
